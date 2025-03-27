@@ -73,5 +73,61 @@ RSpec.describe PexelsService, type: :service do
       expect(result[:per_page]).to eq(15)
       expect(result[:total_pages]).to eq(2)
     end
+
+    it 'handles empty response from API gracefully' do
+      service = PexelsService.new
+
+      empty_response = []
+      def empty_response.total_results
+        0
+      end
+
+      allow(PexelsClient.videos).to receive(:popular).and_return(empty_response)
+
+      result = service.fetch_videos
+
+      expect(result).to include(:items, :page, :per_page, :total_pages)
+      expect(result[:items]).to eq([])
+      expect(result[:total_pages]).to eq(0)
+    end
+
+    it 'handles API failure gracefully' do
+      service = PexelsService.new
+
+      allow(PexelsClient.videos).to receive(:popular).and_raise(StandardError.new("Some Error"))
+
+      result = service.fetch_videos
+
+      expect(result).to include(:items, :page, :per_page, :total_pages, :error)
+      expect(result[:items]).to eq([])
+      expect(result[:total_pages]).to eq(0)
+      expect(result[:error]).to eq("Unknown error: Some Error")
+    end
+
+    it 'handles connection failure (SocketError) gracefully' do
+      service = PexelsService.new
+
+      allow(PexelsClient.videos).to receive(:popular).and_raise(SocketError.new)
+
+      result = service.fetch_videos
+
+      expect(result).to include(:items, :page, :per_page, :total_pages, :error)
+      expect(result[:items]).to eq([])
+      expect(result[:total_pages]).to eq(0)
+      expect(result[:error]).to eq("Connection failed.")
+    end
+
+    it 'handles timeout errors gracefully' do
+      service = PexelsService.new
+
+      allow(PexelsClient.videos).to receive(:popular).and_raise(Net::OpenTimeout.new)
+
+      result = service.fetch_videos
+
+      expect(result).to include(:items, :page, :per_page, :total_pages, :error)
+      expect(result[:items]).to eq([])
+      expect(result[:total_pages]).to eq(0)
+      expect(result[:error]).to eq("Timeout.")
+    end
   end
 end
