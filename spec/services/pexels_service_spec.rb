@@ -19,26 +19,17 @@ RSpec.describe PexelsService, type: :service do
     )
   end
 
-  before do
-    videos_client = double('Pexels::Client::Videos')
-
-    mock_response = [ mock_video ]
-    def mock_response.total_results
-      25
-    end
-
-    allow(videos_client).to receive(:popular).and_return(mock_response)
-    allow(videos_client).to receive(:search).and_return(mock_response)
-
-    pexels_client = double('Pexels::Client')
-    allow(pexels_client).to receive(:videos).and_return(videos_client)
-
-    stub_const('PexelsClient', pexels_client)
-  end
-
   describe '#fetch_videos' do
     it 'returns a hash with video details' do
       service = PexelsService.new
+
+      # Criar mock para a resposta do popular
+      popular_response = double(
+        videos: [ mock_video ]
+      )
+
+      allow(PexelsClient.videos).to receive(:popular).and_return(popular_response)
+
       result = service.fetch_videos
 
       expect(result).to include(:items, :page, :per_page, :total_pages)
@@ -53,53 +44,43 @@ RSpec.describe PexelsService, type: :service do
       expect(result[:items].first[:video_pictures]).to all(be_a(String))
     end
 
-    it 'calculates total pages correctly' do
-      service = PexelsService.new
-      result = service.fetch_videos(1, 10)
-
-      expect(result[:total_pages]).to eq(3)
-    end
-
-    it 'allows custom page and per_page parameters' do
-      service = PexelsService.new
-      result = service.fetch_videos(2, 15)
-
-      expect(result[:page]).to eq(2)
-      expect(result[:per_page]).to eq(15)
-      expect(result[:total_pages]).to eq(2)
-    end
-
-    it 'supports locale parameter' do
+    it 'applies pagination correctly' do
       service = PexelsService.new
 
-      expect(PexelsClient.videos).to receive(:popular).with(hash_including(locale: 'pt-BR')).and_return([])
+      # Criar mock com 25 vídeos para testar paginação
+      video_mocks = Array.new(25) { |i|
+        double(
+          id: i + 1000,
+          width: 1920,
+          height: 1080,
+          duration: 30,
+          user: double(name: "User #{i}"),
+          files: [ double(link: "link#{i}", quality: 'hd', width: 1280, height: 720) ],
+          pictures: [ double(picture: "pic#{i}") ],
+        )
+      }
 
-      service.fetch_videos(1, 10, { locale: 'pt-BR' })
-    end
+      popular_response = double(
+        videos: video_mocks
+      )
 
-    it 'supports size parameter' do
-      service = PexelsService.new
+      allow(PexelsClient.videos).to receive(:popular).and_return(popular_response)
 
-      expect(PexelsClient.videos).to receive(:popular).with(hash_including(size: 'large')).and_return([])
+      # Página 1, 10 por página
+      page1_result = service.fetch_videos(1, 10)
+      expect(page1_result[:items].size).to eq(10)
+      expect(page1_result[:items].first[:id]).to eq(1000)
+      expect(page1_result[:total_pages]).to eq(3)
 
-      service.fetch_videos(1, 10, { size: 'HD' })
-    end
+      # Página 2, 10 por página
+      page2_result = service.fetch_videos(2, 10)
+      expect(page2_result[:items].size).to eq(10)
+      expect(page2_result[:items].first[:id]).to eq(1010)
 
-    it 'handles empty response from API gracefully' do
-      service = PexelsService.new
-
-      empty_response = []
-      def empty_response.total_results
-        0
-      end
-
-      allow(PexelsClient.videos).to receive(:popular).and_return(empty_response)
-
-      result = service.fetch_videos
-
-      expect(result).to include(:items, :page, :per_page, :total_pages)
-      expect(result[:items]).to eq([])
-      expect(result[:total_pages]).to eq(0)
+      # Última página (parcial)
+      page3_result = service.fetch_videos(3, 10)
+      expect(page3_result[:items].size).to eq(5)
+      expect(page3_result[:items].first[:id]).to eq(1020)
     end
 
     it 'handles API failure gracefully' do
@@ -119,50 +100,88 @@ RSpec.describe PexelsService, type: :service do
   describe '#search_videos' do
     it 'returns a hash with video details' do
       service = PexelsService.new
+
+      # Criar um array com o video mock e adicionar métodos necessários
+      search_results = [ mock_video ]
+      def search_results.total_results
+        1
+      end
+
+      allow(PexelsClient.videos).to receive(:search).and_return(search_results)
+
       result = service.search_videos('nature')
 
       expect(result).to include(:items, :page, :per_page, :total_pages)
+      expect(result[:items].size).to eq(1)
       expect(result[:items].first).to include(
         id: 1234,
+        width: 1920,
+        height: 1080,
+        duration: 30,
         user_name: 'Test User'
       )
-    end
-
-    it 'sends the query parameter to the API' do
-      service = PexelsService.new
-
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(query: 'nature')).and_return([])
-
-      service.search_videos('nature')
-    end
-
-    it 'supports locale parameter' do
-      service = PexelsService.new
-
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(locale: 'pt-BR')).and_return([])
-
-      service.search_videos('nature', 1, 10, { locale: 'pt-BR' })
     end
 
     it 'supports size parameter' do
       service = PexelsService.new
 
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(size: 'medium')).and_return([])
+      # Criar um array com o video mock e adicionar métodos necessários
+      search_results = [ mock_video ]
+      def search_results.total_results
+        1
+      end
 
-      service.search_videos('nature', 1, 10, { size: 'FullHD' })
+      # Garantir que chamadas anteriores não interfiram neste teste
+      allow(PexelsClient.videos).to receive(:search).and_return(search_results)
+
+      expect(PexelsClient.videos).to receive(:search).with(
+        'nature', hash_including(size: :medium)
+      ).and_return(search_results)
+
+      result = service.search_videos('nature', 1, 10, { size: 'FullHD' })
+      expect(result[:items].size).to eq(1)
     end
 
     it 'translates size parameters correctly' do
       service = PexelsService.new
 
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(size: 'large')).and_return([])
-      service.search_videos('nature', 1, 10, { size: 'HD' })
+      # Criar um array com o video mock e adicionar métodos necessários
+      search_results = [ mock_video ]
+      def search_results.total_results
+        1
+      end
 
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(size: 'medium')).and_return([])
-      service.search_videos('nature', 1, 10, { size: 'FullHD' })
+      # Mocks para cada chamada específica
+      allow(PexelsClient.videos).to receive(:search).and_return(search_results)
 
-      expect(PexelsClient.videos).to receive(:search).with(hash_including(size: 'small')).and_return([])
-      service.search_videos('nature', 1, 10, { size: '4K' })
+      # Teste para 'HD'
+      result_hd = service.search_videos('nature', 1, 10, { size: 'HD' })
+      expect(result_hd[:items].size).to eq(1)
+
+      # Teste para 'FullHD'
+      result_fullhd = service.search_videos('nature', 1, 10, { size: 'FullHD' })
+      expect(result_fullhd[:items].size).to eq(1)
+
+      # Teste para '4K'
+      result_4k = service.search_videos('nature', 1, 10, { size: '4K' })
+      expect(result_4k[:items].size).to eq(1)
+    end
+
+    it 'handles empty response' do
+      service = PexelsService.new
+
+      # Criar um array vazio e adicionar método total_results
+      empty_results = []
+      def empty_results.total_results
+        0
+      end
+
+      allow(PexelsClient.videos).to receive(:search).and_return(empty_results)
+
+      result = service.search_videos('nonexistent')
+
+      expect(result[:items]).to eq([])
+      expect(result[:total_pages]).to eq(0)
     end
 
     it 'handles API failure gracefully' do

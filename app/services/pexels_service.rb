@@ -5,19 +5,16 @@ class PexelsService
     cache_key = build_cache_key("popular", page, per_page, options)
 
     Rails.cache.fetch(cache_key, expires_in: 30.minutes) do
-      client_params = { page: page, per_page: per_page }
-      client_params[:locale] = options[:locale] if options[:locale].present?
-      client_params[:size] = translate_size(options[:size]) if options[:size].present?
+      response = PexelsClient.videos.popular
 
-      response = PexelsClient.videos.popular(client_params)
+      paginated_items = paginate_items(response.videos, page, per_page)
 
-      if response.total_results.zero?
-        logger.warn "No videos found for page=#{page}, per_page=#{per_page}, options=#{options}. Skipping cache."
-        return format_response(response, page, per_page)
-      end
-
-      logger.info "Successfully fetched #{response.total_results} videos from Pexels API: page=#{page}, per_page=#{per_page}"
-      format_response(response, page, per_page)
+      {
+        items: format_items(paginated_items),
+        page: page,
+        per_page: per_page,
+        total_pages: (response.videos.length.to_f / per_page).ceil
+      }
     end
   rescue SocketError
     handle_error("Connection failed.", page, per_page)
@@ -35,15 +32,14 @@ class PexelsService
     cache_key = build_cache_key("search_#{query}", page, per_page, options)
 
     Rails.cache.fetch(cache_key, expires_in: 30.minutes) do
-      client_params = {
-        query: query,
+      search_params = {
         page: page,
         per_page: per_page
       }
-      client_params[:locale] = options[:locale] if options[:locale].present?
-      client_params[:size] = translate_size(options[:size]) if options[:size].present?
 
-      response = PexelsClient.videos.search(client_params)
+      search_params[:size] = translate_size(options[:size]) if options[:size].present?
+
+      response = PexelsClient.videos.search(query, **search_params)
 
       if response.total_results.zero?
         logger.warn "No videos found for query=#{query}, page=#{page}, per_page=#{per_page}, options=#{options}. Skipping cache."
@@ -65,6 +61,62 @@ class PexelsService
 
   private
 
+  def filter_items(items, options)
+    filtered = items
+
+    if options[:size].present?
+      size_value = translate_size(options[:size])
+      if size_value
+        filtered = filtered.select do |video|
+          case size_value
+          when :large  # HD (720p)
+            video.height >= 720 && video.height < 1080
+          when :medium # FullHD (1080p)
+            video.height >= 1080 && video.height < 2160
+          when :small  # 4K
+            video.height >= 2160
+          else
+            true
+          end
+        end
+      end
+    end
+
+    filtered
+  end
+
+  def paginate_items(items, page, per_page)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page - 1
+
+    end_index = [ end_index, items.length - 1 ].min if items.length > 0
+
+    return [] if start_index >= items.length
+
+    items[start_index..end_index]
+  end
+
+  def format_items(items)
+    items.map do |video|
+      {
+        id: video.id,
+        width: video.width,
+        height: video.height,
+        duration: video.duration,
+        user_name: video.user.name,
+        video_files: video.files.map { |file|
+          {
+            link: file.link,
+            quality: file.quality,
+            width: file.width,
+            height: file.height
+          }
+        },
+        video_pictures: video.pictures.map(&:picture)
+      }
+    end
+  end
+
   def build_cache_key(prefix, page, per_page, options)
     options_key = options.map { |k, v| "#{k}_#{v}" }.join("_")
     "pexels_#{prefix}_page_#{page}_#{per_page}_#{options_key}"
@@ -73,11 +125,11 @@ class PexelsService
   def translate_size(size)
     case size.to_s.downcase
     when "hd"
-      "large"
+      :large
     when "fullhd"
-      "medium"
+      :medium
     when "4k"
-      "small"
+      :small
     else
       nil
     end

@@ -44,7 +44,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       request.headers['Authorization'] = valid_api_key
     end
 
-    it 'returns videos successfully' do
+    it 'returns popular videos when no query is provided' do
       allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
 
       get :index
@@ -54,6 +54,24 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       expect(json_response['items']).to be_present
       expect(json_response['page']).to eq(1)
       expect(json_response['per_page']).to eq(10)
+    end
+
+    it 'returns search results when query is provided' do
+      allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
+
+      get :index, params: { query: 'nature' }
+
+      expect(response).to have_http_status(:success)
+      json_response = JSON.parse(response.body)
+      expect(json_response['items'].first['user_name']).to eq('Search User')
+    end
+
+    it 'ignores empty query and returns popular videos' do
+      allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+
+      get :index, params: { query: '' }
+
+      expect(response).to have_http_status(:success)
     end
 
     it 'supports custom pagination params' do
@@ -68,25 +86,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       expect(json_response['items'].first['user_name']).to eq('Another User')
     end
 
-    it 'supports search query' do
-      allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
-
-      get :index, params: { query: 'nature' }
-
-      expect(response).to have_http_status(:success)
-      json_response = JSON.parse(response.body)
-      expect(json_response['items'].first['user_name']).to eq('Search User')
-    end
-
-    it 'supports locale parameter' do
-      expect(pexels_service).to receive(:fetch_videos).with(1, 10, { locale: 'pt-BR' }).and_return(mock_videos)
-
-      get :index, params: { locale: 'pt-BR' }
-
-      expect(response).to have_http_status(:success)
-    end
-
-    it 'supports size parameter' do
+    it 'supports size parameter for popular videos' do
       expect(pexels_service).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
 
       get :index, params: { size: 'HD' }
@@ -94,16 +94,15 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       expect(response).to have_http_status(:success)
     end
 
-    it 'supports combination of parameters' do
+    it 'supports combination of parameters for search' do
       expect(pexels_service).to receive(:search_videos).with(
-        'nature', 2, 15, { locale: 'pt-BR', size: 'FullHD' }
+        'nature', 2, 15, { size: 'FullHD' }
       ).and_return(mock_videos_2)
 
       get :index, params: {
         query: 'nature',
         page: 2,
         per_page: 15,
-        locale: 'pt-BR',
         size: 'FullHD'
       }
 

@@ -2,11 +2,18 @@ class Api::V1::VideosController < ApplicationController
   before_action :authenticate_token
 
   def index
-    logger.info "Received request for Videos: page=#{params[:page]} per_page=#{params[:per_page]} query=#{params[:query]} locale=#{params[:locale]} size=#{params[:size]}"
+    logger.info "Received request for Videos: page=#{params[:page]} per_page=#{params[:per_page]} query=#{params[:query]} size=#{params[:size]}"
 
     page, per_page = extract_pagination_params
     query_params = extract_query_params
-    videos = fetch_videos(page, per_page, query_params)
+
+    videos = if params[:query].present? && !params[:query].strip.empty?
+      # Se tiver uma consulta não vazia, use search
+      PexelsService.new.search_videos(params[:query], page, per_page, query_params)
+    else
+      # Sem consulta específica, use o método para vídeos populares
+      PexelsService.new.fetch_videos(page, per_page, query_params)
+    end
 
     logger.info "Successfully fetched videos for page #{page} with per_page #{per_page}"
     render json: videos, status: :ok
@@ -33,16 +40,7 @@ class Api::V1::VideosController < ApplicationController
 
   def extract_query_params
     {
-      locale: params[:locale].presence,
       size: params[:size].presence
     }.compact
-  end
-
-  def fetch_videos(page, per_page, query_params = {})
-    if params[:query].present?
-      PexelsService.new.search_videos(params[:query], page, per_page, query_params)
-    else
-      PexelsService.new.fetch_videos(page, per_page, query_params)
-    end
   end
 end
