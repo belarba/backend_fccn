@@ -23,7 +23,6 @@ RSpec.describe PexelsService, type: :service do
     it 'returns a hash with video details' do
       service = PexelsService.new
 
-      # Criar mock para a resposta do popular
       popular_response = double(
         videos: [ mock_video ]
       )
@@ -47,7 +46,6 @@ RSpec.describe PexelsService, type: :service do
     it 'applies pagination correctly' do
       service = PexelsService.new
 
-      # Criar mock com 25 vídeos para testar paginação
       video_mocks = Array.new(25) { |i|
         double(
           id: i + 1000,
@@ -66,18 +64,15 @@ RSpec.describe PexelsService, type: :service do
 
       allow(PexelsClient.videos).to receive(:popular).and_return(popular_response)
 
-      # Página 1, 10 por página
       page1_result = service.fetch_videos(1, 10)
       expect(page1_result[:items].size).to eq(10)
       expect(page1_result[:items].first[:id]).to eq(1000)
       expect(page1_result[:total_pages]).to eq(3)
 
-      # Página 2, 10 por página
       page2_result = service.fetch_videos(2, 10)
       expect(page2_result[:items].size).to eq(10)
       expect(page2_result[:items].first[:id]).to eq(1010)
 
-      # Última página (parcial)
       page3_result = service.fetch_videos(3, 10)
       expect(page3_result[:items].size).to eq(5)
       expect(page3_result[:items].first[:id]).to eq(1020)
@@ -101,7 +96,6 @@ RSpec.describe PexelsService, type: :service do
     it 'returns a hash with video details' do
       service = PexelsService.new
 
-      # Criar um array com o video mock e adicionar métodos necessários
       search_results = [ mock_video ]
       def search_results.total_results
         1
@@ -125,13 +119,11 @@ RSpec.describe PexelsService, type: :service do
     it 'supports size parameter' do
       service = PexelsService.new
 
-      # Criar um array com o video mock e adicionar métodos necessários
       search_results = [ mock_video ]
       def search_results.total_results
         1
       end
 
-      # Garantir que chamadas anteriores não interfiram neste teste
       allow(PexelsClient.videos).to receive(:search).and_return(search_results)
 
       expect(PexelsClient.videos).to receive(:search).with(
@@ -145,24 +137,19 @@ RSpec.describe PexelsService, type: :service do
     it 'translates size parameters correctly' do
       service = PexelsService.new
 
-      # Criar um array com o video mock e adicionar métodos necessários
       search_results = [ mock_video ]
       def search_results.total_results
         1
       end
 
-      # Mocks para cada chamada específica
       allow(PexelsClient.videos).to receive(:search).and_return(search_results)
 
-      # Teste para 'HD'
       result_hd = service.search_videos('nature', 1, 10, { size: 'HD' })
       expect(result_hd[:items].size).to eq(1)
 
-      # Teste para 'FullHD'
       result_fullhd = service.search_videos('nature', 1, 10, { size: 'FullHD' })
       expect(result_fullhd[:items].size).to eq(1)
 
-      # Teste para '4K'
       result_4k = service.search_videos('nature', 1, 10, { size: '4K' })
       expect(result_4k[:items].size).to eq(1)
     end
@@ -170,7 +157,6 @@ RSpec.describe PexelsService, type: :service do
     it 'handles empty response' do
       service = PexelsService.new
 
-      # Criar um array vazio e adicionar método total_results
       empty_results = []
       def empty_results.total_results
         0
