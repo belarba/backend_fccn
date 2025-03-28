@@ -2,10 +2,11 @@ class Api::V1::VideosController < ApplicationController
   before_action :authenticate_token
 
   def index
-    logger.info "Received request for Videos: page=#{params[:page]} per_page=#{params[:per_page]}"
+    logger.info "Received request for Videos: page=#{params[:page]} per_page=#{params[:per_page]} query=#{params[:query]} locale=#{params[:locale]} size=#{params[:size]}"
 
     page, per_page = extract_pagination_params
-    videos = fetch_videos(page, per_page)
+    query_params = extract_query_params
+    videos = fetch_videos(page, per_page, query_params)
 
     logger.info "Successfully fetched videos for page #{page} with per_page #{per_page}"
     render json: videos, status: :ok
@@ -30,7 +31,18 @@ class Api::V1::VideosController < ApplicationController
     [ page, per_page ]
   end
 
-  def fetch_videos(page, per_page)
-    PexelsService.new.fetch_videos(page, per_page)
+  def extract_query_params
+    {
+      locale: params[:locale].presence,
+      size: params[:size].presence
+    }.compact
+  end
+
+  def fetch_videos(page, per_page, query_params = {})
+    if params[:query].present?
+      PexelsService.new.search_videos(params[:query], page, per_page, query_params)
+    else
+      PexelsService.new.fetch_videos(page, per_page, query_params)
+    end
   end
 end

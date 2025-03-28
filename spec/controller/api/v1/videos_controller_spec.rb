@@ -22,6 +22,15 @@ RSpec.describe Api::V1::VideosController, type: :controller do
     }
   end
 
+  let(:mock_search_videos) do
+    {
+      items: [ { id: 3, user_name: 'Search User' } ],
+      page: 1,
+      per_page: 10,
+      total_pages: 1
+    }
+  end
+
   let(:pexels_service) { instance_double(PexelsService) }
 
   before do
@@ -57,6 +66,51 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       expect(json_response['page']).to eq(2)
       expect(json_response['per_page']).to eq(15)
       expect(json_response['items'].first['user_name']).to eq('Another User')
+    end
+
+    it 'supports search query' do
+      allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
+
+      get :index, params: { query: 'nature' }
+
+      expect(response).to have_http_status(:success)
+      json_response = JSON.parse(response.body)
+      expect(json_response['items'].first['user_name']).to eq('Search User')
+    end
+
+    it 'supports locale parameter' do
+      expect(pexels_service).to receive(:fetch_videos).with(1, 10, { locale: 'pt-BR' }).and_return(mock_videos)
+
+      get :index, params: { locale: 'pt-BR' }
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'supports size parameter' do
+      expect(pexels_service).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
+
+      get :index, params: { size: 'HD' }
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'supports combination of parameters' do
+      expect(pexels_service).to receive(:search_videos).with(
+        'nature', 2, 15, { locale: 'pt-BR', size: 'FullHD' }
+      ).and_return(mock_videos_2)
+
+      get :index, params: {
+        query: 'nature',
+        page: 2,
+        per_page: 15,
+        locale: 'pt-BR',
+        size: 'FullHD'
+      }
+
+      expect(response).to have_http_status(:success)
+      json_response = JSON.parse(response.body)
+      expect(json_response['page']).to eq(2)
+      expect(json_response['per_page']).to eq(15)
     end
   end
 
