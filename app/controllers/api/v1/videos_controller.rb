@@ -5,15 +5,13 @@ class Api::V1::VideosController < ApplicationController
     logger.info "Received request for Videos: page=#{params[:page]} per_page=#{params[:per_page]}"
 
     page, per_page = extract_pagination_params
-
     videos = fetch_videos(page, per_page)
 
     logger.info "Successfully fetched videos for page #{page} with per_page #{per_page}"
-
     render json: videos, status: :ok
   rescue StandardError => e
     logger.error "Error fetching videos: #{e.message}"
-    render json: { error: "Erro ao buscar vídeos: #{e.message}" }, status: :internal_server_error
+    render json: { error: "Error fetching videos: #{e.message}" }, status: :internal_server_error
   end
 
   private
@@ -21,19 +19,18 @@ class Api::V1::VideosController < ApplicationController
   def authenticate_token
     token = request.headers["Authorization"]
     unless token && ActiveSupport::SecurityUtils.secure_compare(token, ENV["BACKEND_API_KEY"])
-      logger.warn "Unauthorized access attempt with token: #{request.headers["Authorization"]}"
+      logger.warn "Unauthorized access attempt detected."
       render json: { error: "Unauthorized" }, status: :unauthorized
     end
   end
 
   def extract_pagination_params
-    page = params[:page].present? ? params[:page].to_i : 1
-    per_page = params[:per_page].present? ? params[:per_page].to_i : 10
+    page = params[:page].to_i.positive? ? params[:page].to_i : 1
+    per_page = params[:per_page].to_i.positive? ? params[:per_page].to_i : 10
     [ page, per_page ]
   end
 
   def fetch_videos(page, per_page)
-    service = PexelsService.new
-    service.fetch_videos(page, per_page)
+    PexelsService.new.fetch_videos(page, per_page)
   end
 end
