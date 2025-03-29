@@ -22,6 +22,23 @@ class Api::V1::VideosController < ApplicationController
     render json: { error: "Error fetching videos: #{e.message}" }, status: :internal_server_error
   end
 
+  def show
+    logger.info "Received request for Video with ID: #{params[:id]}"
+
+    video = PexelsService.new.fetch_video_by_id(params[:id])
+
+    if video[:error].present?
+      logger.error "Error fetching video: #{video[:error]}"
+      render json: { error: video[:error] }, status: :not_found
+    else
+      logger.info "Successfully fetched video with ID: #{params[:id]}"
+      render json: video, status: :ok
+    end
+  rescue StandardError => e
+    logger.error "Error fetching video: #{e.message}"
+    render json: { error: "Error fetching video: #{e.message}" }, status: :internal_server_error
+  end
+
   private
 
   def authenticate_token

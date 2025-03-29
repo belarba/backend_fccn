@@ -9,7 +9,7 @@ Rails.application.routes.draw do
   # root "posts#index"
   namespace :api do
     namespace :v1 do
-      resources :videos, only: [ :index ]
+      resources :videos, only: [ :index, :show ]
     end
   end
 end

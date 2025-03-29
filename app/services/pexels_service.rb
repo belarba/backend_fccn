@@ -5,7 +5,7 @@ class PexelsService
     cache_key = build_cache_key("popular", page, per_page, options)
 
     Rails.cache.fetch(cache_key, expires_in: 30.minutes) do
-      response = PexelsClient.videos.popular
+      response = PexelsClient.videos.popular(per_page: 16)
 
       paginated_items = paginate_items(response.videos, page, per_page)
 
@@ -57,6 +57,36 @@ class PexelsService
     handle_error("Invalid JSON response from Pexels.", page, per_page)
   rescue StandardError => e
     handle_error("Unknown error: #{e.message}", page, per_page)
+  end
+
+  def fetch_video_by_id(id)
+    logger.info "Fetching video with ID: #{id} from Pexels"
+
+    cache_key = "pexels_video_#{id}"
+
+    Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+      begin
+        video = PexelsClient.videos.find(id)
+
+        if video.nil?
+          return { error: "Video not found" }
+        end
+
+        format_video_detail(video)
+      rescue Pexels::APIError => e
+        logger.error "Pexels API Error: #{e.message}"
+        { error: "Video not found" }
+      end
+    end
+  rescue SocketError
+    { error: "Connection failed" }
+  rescue Net::OpenTimeout, Net::ReadTimeout
+    { error: "Timeout" }
+  rescue JSON::ParserError
+    { error: "Invalid JSON response from Pexels" }
+  rescue StandardError => e
+    logger.error "Error while fetching video: #{e.message}"
+    { error: "Unknown error: #{e.message}" }
   end
 
   private
@@ -114,6 +144,73 @@ class PexelsService
         },
         video_pictures: video.pictures.map(&:picture)
       }
+    end
+  end
+
+  def format_video_detail(video)
+    {
+      id: video.id,
+      width: video.width,
+      height: video.height,
+      duration: video.duration,
+      user: {
+        name: video.user.name,
+        url: video.user.url
+      },
+      video_files: categorize_video_files(video.files),
+      video_pictures: video.pictures.map(&:picture),
+      resolution: determine_resolution(video.height),
+      url: video.url
+    }
+  end
+
+  def categorize_video_files(files)
+    categorized = {
+      sd: [],
+      hd: [],
+      full_hd: [],
+      uhd: []
+    }
+
+    files.each do |file|
+      quality = determine_quality(file.height)
+      categorized[quality] << {
+        link: file.link,
+        quality: file.quality,
+        width: file.width,
+        height: file.height,
+        file_type: file.file_type
+      }
+    end
+
+    categorized.each do |key, value|
+      categorized[key] = value.sort_by { |f| f[:height] }.reverse
+    end
+
+    categorized
+  end
+
+  def determine_quality(height)
+    if height <= 480
+      :sd
+    elsif height <= 720
+      :hd
+    elsif height <= 1080
+      :full_hd
+    else
+      :uhd
+    end
+  end
+
+  def determine_resolution(height)
+    if height >= 2160
+      "4K"
+    elsif height >= 1080
+      "FullHD"
+    elsif height >= 720
+      "HD"
+    else
+      "SD"
     end
   end
 

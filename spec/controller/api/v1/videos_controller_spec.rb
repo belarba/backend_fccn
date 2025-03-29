@@ -31,6 +31,28 @@ RSpec.describe Api::V1::VideosController, type: :controller do
     }
   end
 
+  let(:mock_video_detail) do
+    {
+      id: 1234,
+      width: 1920,
+      height: 1080,
+      duration: 30,
+      user: {
+        name: 'Test User',
+        url: 'https://www.pexels.com/user/test-user/'
+      },
+      video_files: {
+        sd: [ { link: 'https://example.com/video_sd.mp4', quality: 'sd', width: 640, height: 360, file_type: 'video/mp4' } ],
+        hd: [ { link: 'https://example.com/video_hd.mp4', quality: 'hd', width: 1280, height: 720, file_type: 'video/mp4' } ],
+        full_hd: [ { link: 'https://example.com/video_full_hd.mp4', quality: 'hd', width: 1920, height: 1080, file_type: 'video/mp4' } ],
+        uhd: []
+      },
+      video_pictures: [ 'https://example.com/thumb1.jpg' ],
+      resolution: 'FullHD',
+      url: 'https://www.pexels.com/video/1234/'
+    }
+  end
+
   let(:pexels_service) { instance_double(PexelsService) }
 
   before do
@@ -44,72 +66,109 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       request.headers['Authorization'] = valid_api_key
     end
 
-    it 'returns popular videos when no query is provided' do
-      allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+    describe 'GET #index' do
+      it 'returns popular videos when no query is provided' do
+        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
 
-      get :index
+        get :index
 
-      expect(response).to have_http_status(:success)
-      json_response = JSON.parse(response.body)
-      expect(json_response['items']).to be_present
-      expect(json_response['page']).to eq(1)
-      expect(json_response['per_page']).to eq(10)
+        expect(response).to have_http_status(:success)
+        json_response = JSON.parse(response.body)
+        expect(json_response['items']).to be_present
+        expect(json_response['page']).to eq(1)
+        expect(json_response['per_page']).to eq(10)
+      end
+
+      it 'returns search results when query is provided' do
+        allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
+
+        get :index, params: { query: 'nature' }
+
+        expect(response).to have_http_status(:success)
+        json_response = JSON.parse(response.body)
+        expect(json_response['items'].first['user_name']).to eq('Search User')
+      end
+
+      it 'ignores empty query and returns popular videos' do
+        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+
+        get :index, params: { query: '' }
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'supports custom pagination params' do
+        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos_2)
+
+        get :index, params: { page: 2, per_page: 15 }
+
+        expect(response).to have_http_status(:success)
+        json_response = JSON.parse(response.body)
+        expect(json_response['page']).to eq(2)
+        expect(json_response['per_page']).to eq(15)
+        expect(json_response['items'].first['user_name']).to eq('Another User')
+      end
+
+      it 'supports size parameter for popular videos' do
+        expect(pexels_service).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
+
+        get :index, params: { size: 'HD' }
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'supports combination of parameters for search' do
+        expect(pexels_service).to receive(:search_videos).with(
+          'nature', 2, 15, { size: 'FullHD' }
+        ).and_return(mock_videos_2)
+
+        get :index, params: {
+          query: 'nature',
+          page: 2,
+          per_page: 15,
+          size: 'FullHD'
+        }
+
+        expect(response).to have_http_status(:success)
+        json_response = JSON.parse(response.body)
+        expect(json_response['page']).to eq(2)
+        expect(json_response['per_page']).to eq(15)
+      end
     end
 
-    it 'returns search results when query is provided' do
-      allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
+    describe 'GET #show' do
+      it 'returns a specific video by id' do
+        allow(pexels_service).to receive(:fetch_video_by_id).with('1234').and_return(mock_video_detail)
 
-      get :index, params: { query: 'nature' }
+        get :show, params: { id: '1234' }
 
-      expect(response).to have_http_status(:success)
-      json_response = JSON.parse(response.body)
-      expect(json_response['items'].first['user_name']).to eq('Search User')
-    end
+        expect(response).to have_http_status(:success)
+        json_response = JSON.parse(response.body)
+        expect(json_response['id']).to eq(1234)
+        expect(json_response['resolution']).to eq('FullHD')
+        expect(json_response['user']['name']).to eq('Test User')
+        expect(json_response['video_files']['hd']).to be_present
+      end
 
-    it 'ignores empty query and returns popular videos' do
-      allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+      it 'returns not found when video does not exist' do
+        allow(pexels_service).to receive(:fetch_video_by_id).with('9999').and_return({ error: 'Video not found' })
 
-      get :index, params: { query: '' }
+        get :show, params: { id: '9999' }
 
-      expect(response).to have_http_status(:success)
-    end
+        expect(response).to have_http_status(:not_found)
+        json_response = JSON.parse(response.body)
+        expect(json_response['error']).to eq('Video not found')
+      end
 
-    it 'supports custom pagination params' do
-      allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos_2)
+      it 'handles API errors gracefully' do
+        allow(pexels_service).to receive(:fetch_video_by_id).with('1234').and_raise(StandardError.new('API Error'))
 
-      get :index, params: { page: 2, per_page: 15 }
+        get :show, params: { id: '1234' }
 
-      expect(response).to have_http_status(:success)
-      json_response = JSON.parse(response.body)
-      expect(json_response['page']).to eq(2)
-      expect(json_response['per_page']).to eq(15)
-      expect(json_response['items'].first['user_name']).to eq('Another User')
-    end
-
-    it 'supports size parameter for popular videos' do
-      expect(pexels_service).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
-
-      get :index, params: { size: 'HD' }
-
-      expect(response).to have_http_status(:success)
-    end
-
-    it 'supports combination of parameters for search' do
-      expect(pexels_service).to receive(:search_videos).with(
-        'nature', 2, 15, { size: 'FullHD' }
-      ).and_return(mock_videos_2)
-
-      get :index, params: {
-        query: 'nature',
-        page: 2,
-        per_page: 15,
-        size: 'FullHD'
-      }
-
-      expect(response).to have_http_status(:success)
-      json_response = JSON.parse(response.body)
-      expect(json_response['page']).to eq(2)
-      expect(json_response['per_page']).to eq(15)
+        expect(response).to have_http_status(:internal_server_error)
+        json_response = JSON.parse(response.body)
+        expect(json_response['error']).to be_present
+      end
     end
   end
 
@@ -126,6 +185,16 @@ RSpec.describe Api::V1::VideosController, type: :controller do
 
     it 'returns unauthorized when no token is provided' do
       get :index
+
+      expect(response).to have_http_status(:unauthorized)
+      json_response = JSON.parse(response.body)
+      expect(json_response['error']).to eq('Unauthorized')
+    end
+
+    it 'returns unauthorized for show action' do
+      request.headers['Authorization'] = invalid_api_key
+
+      get :show, params: { id: '1234' }
 
       expect(response).to have_http_status(:unauthorized)
       json_response = JSON.parse(response.body)
