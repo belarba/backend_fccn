@@ -53,12 +53,12 @@ RSpec.describe Api::V1::VideosController, type: :controller do
     }
   end
 
-  let(:pexels_service) { instance_double(PexelsService) }
+  let(:mock_video_provider) { instance_double('VideoProviderInterface') }
 
   before do
     ENV['BACKEND_API_KEY'] = valid_api_key
 
-    allow(PexelsService).to receive(:new).and_return(pexels_service)
+    allow(VideoProviderFactory).to receive(:create).and_return(mock_video_provider)
   end
 
   context 'with valid authorization' do
@@ -68,7 +68,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
 
     describe 'GET #index' do
       it 'returns popular videos when no query is provided' do
-        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+        allow(mock_video_provider).to receive(:fetch_videos).and_return(mock_videos)
 
         get :index
 
@@ -80,7 +80,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'returns search results when query is provided' do
-        allow(pexels_service).to receive(:search_videos).and_return(mock_search_videos)
+        allow(mock_video_provider).to receive(:search_videos).and_return(mock_search_videos)
 
         get :index, params: { query: 'nature' }
 
@@ -90,7 +90,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'ignores empty query and returns popular videos' do
-        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos)
+        allow(mock_video_provider).to receive(:fetch_videos).and_return(mock_videos)
 
         get :index, params: { query: '' }
 
@@ -98,7 +98,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'supports custom pagination params' do
-        allow(pexels_service).to receive(:fetch_videos).and_return(mock_videos_2)
+        allow(mock_video_provider).to receive(:fetch_videos).and_return(mock_videos_2)
 
         get :index, params: { page: 2, per_page: 15 }
 
@@ -110,7 +110,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'supports size parameter for popular videos' do
-        expect(pexels_service).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
+        expect(mock_video_provider).to receive(:fetch_videos).with(1, 10, { size: 'HD' }).and_return(mock_videos)
 
         get :index, params: { size: 'HD' }
 
@@ -118,7 +118,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'supports combination of parameters for search' do
-        expect(pexels_service).to receive(:search_videos).with(
+        expect(mock_video_provider).to receive(:search_videos).with(
           'nature', 2, 15, { size: 'FullHD' }
         ).and_return(mock_videos_2)
 
@@ -138,7 +138,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
 
     describe 'GET #show' do
       it 'returns a specific video by id' do
-        allow(pexels_service).to receive(:fetch_video_by_id).with('1234').and_return(mock_video_detail)
+        allow(mock_video_provider).to receive(:fetch_video_by_id).with('1234').and_return(mock_video_detail)
 
         get :show, params: { id: '1234' }
 
@@ -151,7 +151,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'returns not found when video does not exist' do
-        allow(pexels_service).to receive(:fetch_video_by_id).with('9999').and_return({ error: 'Video not found' })
+        allow(mock_video_provider).to receive(:fetch_video_by_id).with('9999').and_return({ error: 'Video not found' })
 
         get :show, params: { id: '9999' }
 
@@ -161,7 +161,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
       end
 
       it 'handles API errors gracefully' do
-        allow(pexels_service).to receive(:fetch_video_by_id).with('1234').and_raise(StandardError.new('API Error'))
+        allow(mock_video_provider).to receive(:fetch_video_by_id).with('1234').and_raise(StandardError.new('API Error'))
 
         get :show, params: { id: '1234' }
 
