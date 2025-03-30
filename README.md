@@ -57,7 +57,7 @@ bin/dev
 bin/rails server
 ```
 
-O servidor estará disponível em: http://localhost:3001
+O servidor estará disponível em: http://localhost:3001 por padrão
 
 ### Testes
 
