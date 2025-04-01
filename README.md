@@ -7,6 +7,7 @@ Esta API fornece acesso a vídeos da plataforma Pexels, permitindo buscar vídeo
 - Ruby 3.4.2
 - Rails 8.0.2
 - RSpec (testes)
+- VCR (gravação de cassetes para testes)
 - Pexels API
 - Dotenv (gerenciamento de variáveis de ambiente)
 - Jbuilder (formatação de respostas JSON)
@@ -34,7 +35,7 @@ bundle install
 ```
 
 ### 3. Configure as variáveis de ambiente
-
+#### Ambiente de Desenvolvimento
 Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
 ```
@@ -42,10 +43,24 @@ PEXELS_API_KEY=sua_chave_da_api_pexels
 BACKEND_API_KEY=chave_para_autenticacao_da_api
 ```
 
-Para obter uma chave da API Pexels, registre-se em [https://www.pexels.com/api/](https://www.pexels.com/api/).
+#### Ambiente de Teste
+Crie um arquivo `.env.test` na raiz do projeto com variáveis para teste:
 
-A `BACKEND_API_KEY` é uma chave que você define para proteger seu backend. Ela será necessária para autenticar requisições à API.
+```
+RAILS_ENV=test
+PEXELS_API_KEY=test_pexels_api_key
+BACKEND_API_KEY=test_backend_api_key
+```
 
+#### Obtendo Chaves
+- Para obter uma chave da API Pexels, registre-se em [https://www.pexels.com/api/](https://www.pexels.com/api/)
+- A `BACKEND_API_KEY` é uma chave que você define para proteger seu backend
+- Para testes, use chaves fictícias que simulem as credenciais reais
+
+#### Importante
+- Adicione `.env*` ao seu `.gitignore` para não versionar credenciais
+- Mantenha as chaves de teste diferentes das de produção
+- Nunca compartilhe chaves de API reais publicamente
 
 ## Executando o Projeto
 
@@ -61,7 +76,9 @@ bin/rails server
 
 O servidor estará disponível em: http://localhost:3001 por padrão
 
-### Testes
+## Testes
+
+### Executando os Testes
 
 Para executar todos os testes:
 
@@ -69,10 +86,68 @@ Para executar todos os testes:
 bundle exec rspec
 ```
 
-Para executar testes específicos:
+### Configuração do VCR
+
+Este projeto utiliza a gem VCR para gravar e reproduzir chamadas de API externas durante os testes. 
+
+#### Como Funciona
+
+- VCR grava as respostas das chamadas de API em "cassetes" (arquivos YAML)
+- Nas execuções subsequentes dos testes, usa as respostas gravadas em vez de fazer chamadas reais
+- Ajuda a manter os testes rápidos e consistentes
+
+#### Configurações Principais
+
+No arquivo `spec/spec_helper.rb`, o VCR está configurado com as seguintes opções:
+
+```ruby
+VCR.configure do |config|
+  config.cassette_library_dir = "spec/fixtures/vcr_cassettes"
+  config.hook_into :webmock
+  config.configure_rspec_metadata!
+  config.ignore_localhost = true
+  config.default_cassette_options = {
+    record: :new_episodes,
+    match_requests_on: [ :method, :uri, :body ]
+  }
+
+  # Filtra a chave da API Pexels nas cassetes
+  config.filter_sensitive_data('<PEXELS_API_KEY>') { ENV['PEXELS_API_KEY'] }
+end
+```
+
+#### Modos de Gravação
+
+- `:new_episodes`: Grava apenas novas interações não capturadas anteriormente
+- `:once`: Grava apenas se não existir uma cassete
+- `:none`: Falha se tentar fazer uma chamada de rede não capturada
+
+#### Usando VCR nos Testes
+
+Adicione o decorator `vcr` aos seus testes:
+
+```ruby
+it 'fetches videos', vcr: { cassette_name: 'videos/fetch' } do
+  # Seu teste
+end
+```
+
+#### Gerenciando Cassetes
+
+- As cassetes são armazenadas em `spec/fixtures/vcr_cassettes/`
+- Inclua esta pasta no controle de versão
+- Verifique se não contém informações sensíveis
+
+#### Regenerando Cassetes
+
+Se precisar atualizar as cassetes (por exemplo, após mudanças na API):
 
 ```bash
-bundle exec rspec spec/path/to/test_file.rb
+# Exclua as cassetes antigas
+rm -rf spec/fixtures/vcr_cassettes
+
+# Execute os testes para regerar
+bundle exec rspec
 ```
 
 ## Estrutura do Projeto
