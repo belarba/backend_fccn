@@ -23,6 +23,7 @@ VCR.configure do |config|
   config.ignore_localhost = true
   config.default_cassette_options = {
     record: :new_episodes,
+    re_record_interval: 30.days,
     match_requests_on: [ :method, :uri, :body ]
   }
 

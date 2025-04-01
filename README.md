@@ -40,7 +40,7 @@ Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
 ```
 PEXELS_API_KEY=sua_chave_da_api_pexels
-BACKEND_API_KEY=chave_para_autenticacao_da_api
+FRONTEND_ACCESS_PASSWORD=senha_para_autenticacao_do_frontend
 ```
 
 #### Ambiente de Teste
@@ -49,18 +49,18 @@ Crie um arquivo `.env.test` na raiz do projeto com variáveis para teste:
 ```
 RAILS_ENV=test
 PEXELS_API_KEY=test_pexels_api_key
-BACKEND_API_KEY=test_backend_api_key
+FRONTEND_ACCESS_PASSWORD=test_password
 ```
 
 #### Obtendo Chaves
 - Para obter uma chave da API Pexels, registre-se em [https://www.pexels.com/api/](https://www.pexels.com/api/)
-- A `BACKEND_API_KEY` é uma chave que você define para proteger seu backend
-- Para testes, use chaves fictícias que simulem as credenciais reais
+- O `FRONTEND_ACCESS_PASSWORD` é uma senha que você define para proteger o acesso ao frontend
+- Para testes, use senhas fictícias que simulem as credenciais reais
 
 #### Importante
 - Adicione `.env*` ao seu `.gitignore` para não versionar credenciais
-- Mantenha as chaves de teste diferentes das de produção
-- Nunca compartilhe chaves de API reais publicamente
+- Mantenha as senhas de teste diferentes das de produção
+- Nunca compartilhe credenciais reais publicamente
 
 ## Executando o Projeto
 
@@ -75,6 +75,14 @@ bin/rails server
 ```
 
 O servidor estará disponível em: http://localhost:3001 por padrão
+
+## Autenticação
+
+A API atualmente utiliza autenticação baseada em sessão. O fluxo de autenticação é:
+
+1. O cliente envia uma requisição POST para `/api/v1/auth/session` com a senha de acesso
+2. Se a senha estiver correta, a sessão é marcada como autenticada
+3. Todas as requisições subsequentes utilizam essa sessão para autenticação
 
 ## Testes
 
@@ -138,23 +146,42 @@ end
 - Inclua esta pasta no controle de versão
 - Verifique se não contém informações sensíveis
 
-#### Regenerando Cassetes
+#### Regenerando e Mantendo Cassetes
 
-Se precisar atualizar as cassetes (por exemplo, após mudanças na API):
+O VCR está configurado para regravar automaticamente cassetes após um período definido:
+
+```ruby
+# No arquivo spec/spec_helper.rb
+VCR.configure do |config|
+  # ... outras configurações
+  config.default_cassette_options = {
+    record: :new_episodes,
+    re_record_interval: 30.days,  # Regrava cassetes mais antigas que 30 dias
+    match_requests_on: [:method, :uri, :body]
+  }
+end
+```
+
+Além disso, disponibilizamos tarefas Rake para manutenção manual das cassetes:
 
 ```bash
-# Exclua as cassetes antigas
-rm -rf spec/fixtures/vcr_cassettes
+# Limpar cassetes mais antigas que 30 dias
+rails vcr:clean_old
 
-# Execute os testes para regerar
-bundle exec rspec
+# Remover todas as cassetes para regravação completa
+rails vcr:regenerate
 ```
+
+É recomendável executar estas tarefas periodicamente (por exemplo, mensalmente) ou quando ocorrerem mudanças significativas na API externa.
 
 ## Estrutura do Projeto
 
 A aplicação segue os princípios SOLID e está estruturada da seguinte forma:
 
 - **app/controllers**: Controladores da API
+  - `api/v1/auth_controller.rb`: Gerencia autenticação
+  - `api/v1/base_controller.rb`: Controller base com verificação de autenticação
+  - `api/v1/videos_controller.rb`: Endpoints de vídeo
 - **app/services**: Serviços que implementam a lógica de negócios
   - `video_provider_interface.rb`: Interface para provedores de vídeo
   - `video_formatter_service.rb`: Serviço para formatação de resultados
@@ -179,6 +206,22 @@ A utilização do Jbuilder para formatação de JSON permite uma melhor organiza
 
 ## Endpoints da API
 
+### Autenticação
+
+```
+POST /api/v1/auth/session
+```
+
+**Parâmetros do corpo:**
+- `password`: Senha de acesso definida em FRONTEND_ACCESS_PASSWORD
+
+**Exemplo de resposta:**
+```json
+{
+  "status": "success"
+}
+```
+
 ### Listar Vídeos
 
 ```
@@ -190,11 +233,6 @@ GET /api/v1/videos
 - `page`: Página dos resultados (padrão: 1)
 - `per_page`: Itens por página (padrão: 10)
 - `size`: Filtro de tamanho (HD, FullHD, 4K)
-
-**Cabeçalhos:**
-```
-Authorization: sua_backend_api_key
-```
 
 **Exemplo de resposta:**
 ```json
@@ -229,11 +267,6 @@ Authorization: sua_backend_api_key
 
 ```
 GET /api/v1/videos/:id
-```
-
-**Cabeçalhos:**
-```
-Authorization: sua_backend_api_key
 ```
 
 **Exemplo de resposta:**
@@ -299,6 +332,21 @@ A API utiliza caching para reduzir o número de chamadas à API Pexels:
 3. Commit suas alterações (`git commit -am 'Adiciona nova feature'`)
 4. Push para a branch (`git push origin feature/nome-da-feature`)
 5. Crie um novo Pull Request
+
+### TODO: Implementação de JWT
+
+Para melhor suporte a múltiplos clientes e maior escalabilidade, planeja-se migrar de autenticação baseada em sessão para tokens JWT (JSON Web Tokens). Isso trará os seguintes benefícios:
+
+- Autenticação stateless (sem estado) que funciona melhor em ambientes distribuídos
+- Possibilidade de incluir identificação do cliente e outras informações no token
+- Expiração automática de tokens para maior segurança
+- Padrão da indústria que facilita integração com outros sistemas
+
+A implementação envolverá:
+- Adicionar a gem JWT
+- Criar um módulo para codificar/decodificar tokens
+- Modificar os controllers para usar tokens em vez de sessões
+- Atualizar a documentação da API
 
 ## Licença
 
