@@ -1,0 +1,73 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.pexels.com/videos/videos/999999999999
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Authorization:
+      - "<PEXELS_API_KEY>"
+      User-Agent:
+      - Pexels/Ruby (0.5.0)
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      Host:
+      - api.pexels.com
+  response:
+    status:
+      code: 404
+      message: Not Found
+    headers:
+      Date:
+      - Tue, 01 Apr 2025 10:18:38 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cf-Ray:
+      - 929757f75942e3b4-LIS
+      Cf-Cache-Status:
+      - EXPIRED
+      Access-Control-Allow-Origin:
+      - "*"
+      Cache-Control:
+      - max-age=86400
+      Access-Control-Allow-Headers:
+      - Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, User-Agent
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Powered-By:
+      - cloud66
+      X-Ratelimit-Limit:
+      - '25000'
+      X-Ratelimit-Remaining:
+      - '24830'
+      X-Ratelimit-Reset:
+      - '1745661799'
+      X-Request-Id:
+      - 3f390fdb-2a1c-450b-8721-ea0be64be15c
+      X-Runtime:
+      - '0.016634'
+      Set-Cookie:
+      - __cf_bm=WcuqEktbEwyWVwCNTQqFvQzLQ9XLbHIT3HKWCXWjee8-1743502718-1.0.1.1-UIxqc_aq7pdWjAex2_xMOLxwq24yexk5nG5jyNPqCfI3IO.HcJDUCl_3bSuFYj_eXuvcLLERWpLwq4c1fX6ubIZl5XQTdGhBCyQDie8zi.0;
+        path=/; expires=Tue, 01-Apr-25 10:48:38 GMT; domain=.pexels.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=b.AA.rSR4UHgTSZzvW2vJsk320f5oEDNWy3UgY8SVBk-1743502718883-0.0.1.1-604800000;
+        path=/; domain=.pexels.com; HttpOnly; Secure; SameSite=None
+      Vary:
+      - Accept-Encoding
+      Server:
+      - cloudflare
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"status":404,"code":"Not Found"}'
+  recorded_at: Tue, 01 Apr 2025 10:18:38 GMT
+recorded_with: VCR 6.3.1

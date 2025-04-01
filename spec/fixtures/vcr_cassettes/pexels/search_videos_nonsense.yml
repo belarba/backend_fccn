@@ -1,0 +1,77 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.pexels.com/videos/search?page=1&per_page=10&query=ajskdhaskjdhkajshdkjashdkjahsdkjahskdjhaksjdhakjshd
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Authorization:
+      - "<PEXELS_API_KEY>"
+      User-Agent:
+      - Pexels/Ruby (0.5.0)
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      Host:
+      - api.pexels.com
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 01 Apr 2025 10:18:38 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cf-Ray:
+      - 929757f2ec67e3b9-LIS
+      Cf-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      Cache-Control:
+      - max-age=86400
+      Etag:
+      - W/"b197411b719f637a6cfc026e276aae60"
+      Expires:
+      - Wed, 02 Apr 2025 10:18:38 GMT
+      Access-Control-Allow-Headers:
+      - Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, User-Agent
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Powered-By:
+      - cloud66
+      X-Ratelimit-Limit:
+      - '25000'
+      X-Ratelimit-Remaining:
+      - '24832'
+      X-Ratelimit-Reset:
+      - '1745661799'
+      X-Request-Id:
+      - 4c699cb9-0908-4aa2-89c4-ceff5a95b537
+      X-Runtime:
+      - '0.076756'
+      Set-Cookie:
+      - __cf_bm=YirDMPFNML5KK5_ehVN0XpRXI5n.nXTj3wm8icy3PjA-1743502718-1.0.1.1-pL6jBvgaaeV4sETZ2hOPXdC8mwxnDVdP4dDQ9FSvLElmwXrgSTTuwNHgNOCX17daM7lzXWQlrbXhDe0HE4pp74qyOS4nJhi37QyQUzHop90;
+        path=/; expires=Tue, 01-Apr-25 10:48:38 GMT; domain=.pexels.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=5ESa8dZBXolpoGmE6_BUMrq3fOd_Kk4Vw3lzPvEdyKk-1743502718259-0.0.1.1-604800000;
+        path=/; domain=.pexels.com; HttpOnly; Secure; SameSite=None
+      Vary:
+      - Accept-Encoding
+      Server:
+      - cloudflare
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"page":1,"per_page":10,"videos":[],"total_results":0,"url":"https://api-server.pexels.com/search/videos/ajskdhaskjdhkajshdkjashdkjahsdkjahskdjhaksjdhakjshd/"}'
+  recorded_at: Tue, 01 Apr 2025 10:18:38 GMT
+recorded_with: VCR 6.3.1

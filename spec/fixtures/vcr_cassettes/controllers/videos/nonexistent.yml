@@ -1,0 +1,73 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.pexels.com/videos/videos/999999999999
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Authorization:
+      - "<PEXELS_API_KEY>"
+      User-Agent:
+      - Pexels/Ruby (0.5.0)
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      Host:
+      - api.pexels.com
+  response:
+    status:
+      code: 404
+      message: Not Found
+    headers:
+      Date:
+      - Tue, 01 Apr 2025 10:18:36 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cf-Ray:
+      - 929757e77d23f369-LIS
+      Cf-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      Cache-Control:
+      - max-age=86400
+      Access-Control-Allow-Headers:
+      - Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, User-Agent
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Powered-By:
+      - cloud66
+      X-Ratelimit-Limit:
+      - '25000'
+      X-Ratelimit-Remaining:
+      - '24838'
+      X-Ratelimit-Reset:
+      - '1745661799'
+      X-Request-Id:
+      - d9cbbb8f-9a1f-43ff-a5b5-4e5cd62fd6b7
+      X-Runtime:
+      - '0.015794'
+      Set-Cookie:
+      - __cf_bm=HvCxe0MXJpZklwqpIL7zOD9FKKHA0B9Nx1X9a54KmUI-1743502716-1.0.1.1-OvhJ8Dlec8tHrlqLAsMB60Rk0bY53w1hg3wBe0.z.90vCcCnGTDVEh3MlEJMZP2HBKbkeHcR0CoNzG1lev9XX1Ux8skRswkzJlGm33.8LuY;
+        path=/; expires=Tue, 01-Apr-25 10:48:36 GMT; domain=.pexels.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=T.hDBuyaXjMb0o29QCbx1B_ySMy5SfHIBl.zHjHR0PU-1743502716322-0.0.1.1-604800000;
+        path=/; domain=.pexels.com; HttpOnly; Secure; SameSite=None
+      Vary:
+      - Accept-Encoding
+      Server:
+      - cloudflare
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"status":404,"code":"Not Found"}'
+  recorded_at: Tue, 01 Apr 2025 10:18:36 GMT
+recorded_with: VCR 6.3.1
