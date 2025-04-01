@@ -9,6 +9,7 @@ Esta API fornece acesso a vídeos da plataforma Pexels, permitindo buscar vídeo
 - RSpec (testes)
 - Pexels API
 - Dotenv (gerenciamento de variáveis de ambiente)
+- Rubocop (para enfatizar melhores práticas)
 
 ## Pré-requisitos
 

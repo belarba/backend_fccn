@@ -80,12 +80,15 @@ RSpec.describe PexelsVideoProvider, type: :service do
       expect(result).to eq(formatted_response)
     end
 
-    it 'translates size parameters correctly' do
+    it 'passes size parameters directly to the API' do
       search_results = [ mock_video ]
       def search_results.total_results; 1; end
 
-      allow(filter).to receive(:translate_size).with('HD').and_return(:large)
-      allow(PexelsClient.videos).to receive(:search).with('nature', hash_including(size: :large)).and_return(search_results)
+      # Modificação: Esperar que "HD" seja passado diretamente para a API, sem tradução
+      expect(PexelsClient.videos).to receive(:search)
+        .with('nature', hash_including(size: 'HD'))
+        .and_return(search_results)
+
       allow(formatter).to receive(:format_search_response).with(search_results, 1, 10).and_return(formatted_response)
 
       provider.search_videos('nature', 1, 10, { size: 'HD' })

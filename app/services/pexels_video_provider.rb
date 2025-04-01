@@ -1,6 +1,8 @@
 class PexelsVideoProvider
   include VideoProviderInterface
 
+  MAX_RESULT_INITIAL_PAGE = 16.freeze
+
   def initialize(formatter: VideoFormatterService.new, filter: VideoFilterService.new)
     @formatter = formatter
     @filter = filter
@@ -12,7 +14,7 @@ class PexelsVideoProvider
     cache_key = build_cache_key("popular", page, per_page, options)
 
     Rails.cache.fetch(cache_key, expires_in: 30.minutes) do
-      response = PexelsClient.videos.popular(per_page: 16)
+      response = PexelsClient.videos.popular(per_page: MAX_RESULT_INITIAL_PAGE)
 
       filtered_videos = @filter.filter_by_size(response.videos, options[:size])
       paginated_items = @filter.paginate_items(filtered_videos, page, per_page)
@@ -40,7 +42,7 @@ class PexelsVideoProvider
         per_page: per_page
       }
 
-      search_params[:size] = @filter.translate_size(options[:size]) if options[:size].present?
+      search_params[:size] = options[:size] if options[:size].present?
 
       response = PexelsClient.videos.search(query, **search_params)
 
