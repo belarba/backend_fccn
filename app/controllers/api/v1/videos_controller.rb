@@ -1,5 +1,4 @@
-class Api::V1::VideosController < ApplicationController
-  before_action :authenticate_token
+class Api::V1::VideosController < Api::V1::BaseController
   before_action :set_video_provider
 
   def index
