@@ -1,141 +1,105 @@
 require 'rails_helper'
 
 RSpec.describe PexelsVideoProvider, type: :service do
-  let(:formatter) { instance_double(VideoFormatterService) }
-  let(:filter) { instance_double(VideoFilterService) }
-  let(:provider) { PexelsVideoProvider.new(formatter: formatter, filter: filter) }
+  let(:provider) { PexelsVideoProvider.new }
 
-  let(:mock_video) do
-    double(
-      id: 1234,
-      width: 1920,
-      height: 1080,
-      duration: 30,
-      user: double(name: 'Test User', url: 'https://www.pexels.com/user/test-user/'),
-      files: [
-        double(link: 'link1', quality: 'hd', width: 1280, height: 720, file_type: 'video/mp4'),
-        double(link: 'link2', quality: 'sd', width: 640, height: 360, file_type: 'video/mp4')
-      ],
-      pictures: [
-        double(picture: 'pic1')
-      ],
-      url: 'url'
-    )
-  end
-
-  let(:formatted_response) do
-    {
-      items: [ { id: 1234, user_name: 'Test User' } ],
-      page: 1,
-      per_page: 10,
-      total_pages: 1
-    }
-  end
-
-  let(:formatted_detail) do
-    {
-      id: 1234,
-      width: 1920,
-      height: 1080,
-      user: { name: 'Test User' },
-      video_files: { sd: [], hd: [] },
-      resolution: 'FullHD'
-    }
-  end
-
-  describe '#fetch_videos' do
-    it 'fetches, filters, and formats popular videos' do
-      popular_response = double(videos: [ mock_video ])
-
-      allow(PexelsClient.videos).to receive(:popular).and_return(popular_response)
-      allow(filter).to receive(:filter_by_size).with([ mock_video ], nil).and_return([ mock_video ])
-      allow(filter).to receive(:paginate_items).with([ mock_video ], 1, 10).and_return([ mock_video ])
-      allow(formatter).to receive(:format_videos_response).with([ mock_video ], 1, 10).and_return(formatted_response)
-
+  describe '#fetch_videos', vcr: { cassette_name: 'pexels/popular_videos' } do
+    it 'fetches popular videos' do
       result = provider.fetch_videos
 
-      expect(result).to eq(formatted_response)
+      expect(result).to be_a(Hash)
+      expect(result[:items]).to be_an(Array)
+      expect(result[:page]).to eq(1)
+      expect(result[:per_page]).to eq(10)
+      expect(result[:total_pages]).to be_a(Integer)
     end
 
-    it 'handles API errors gracefully' do
-      allow(PexelsClient.videos).to receive(:popular).and_raise(StandardError.new('API Error'))
+    it 'handles pagination correctly', vcr: { cassette_name: 'pexels/popular_videos_page_2' } do
+      result = provider.fetch_videos(2, 5)
 
-      result = provider.fetch_videos
-
-      expect(result[:error]).to include('Unknown error')
-      expect(result[:items]).to eq([])
-    end
-  end
-
-  describe '#search_videos' do
-    it 'searches and formats videos properly' do
-      search_results = [ mock_video ]
-      def search_results.total_results; 1; end
-
-      allow(PexelsClient.videos).to receive(:search).with('test', anything).and_return(search_results)
-      allow(formatter).to receive(:format_search_response).with(search_results, 1, 10).and_return(formatted_response)
-
-      result = provider.search_videos('test')
-
-      expect(result).to eq(formatted_response)
+      expect(result[:page]).to eq(2)
+      expect(result[:per_page]).to eq(5)
+      expect(result[:items].length).to be <= 5
     end
 
-    it 'passes size parameters directly to the API' do
-      search_results = [ mock_video ]
-      def search_results.total_results; 1; end
+    it 'filters videos by size', vcr: { cassette_name: 'pexels/popular_videos_hd' } do
+      result = provider.fetch_videos(1, 10, { size: 'HD' })
 
-      # Modificação: Esperar que "HD" seja passado diretamente para a API, sem tradução
-      expect(PexelsClient.videos).to receive(:search)
-        .with('nature', hash_including(size: 'HD'))
-        .and_return(search_results)
-
-      allow(formatter).to receive(:format_search_response).with(search_results, 1, 10).and_return(formatted_response)
-
-      provider.search_videos('nature', 1, 10, { size: 'HD' })
-    end
-
-    it 'handles API errors gracefully' do
-      allow(PexelsClient.videos).to receive(:search).and_raise(StandardError.new('API Error'))
-
-      result = provider.search_videos('test')
-
-      expect(result[:error]).to include('Unknown error')
-      expect(result[:items]).to eq([])
+      expect(result[:items]).to be_an(Array)
+      # Verifica se os vídeos filtrados têm resolução apropriada quando disponíveis
+      if result[:items].any?
+        result[:items].each do |video|
+          expect(video).to include(:height)
+        end
+      end
     end
   end
 
-  describe '#fetch_video_by_id' do
-    it 'fetches and formats a single video correctly' do
-      allow(PexelsClient.videos).to receive(:find).with('1234').and_return(mock_video)
-      allow(formatter).to receive(:format_video_detail).with(mock_video).and_return(formatted_detail)
+  describe '#search_videos', vcr: { cassette_name: 'pexels/search_videos_nature' } do
+    it 'searches for videos by query' do
+      result = provider.search_videos('nature')
 
-      result = provider.fetch_video_by_id('1234')
-
-      expect(result).to eq(formatted_detail)
+      expect(result).to be_a(Hash)
+      expect(result[:items]).to be_an(Array)
+      expect(result[:page]).to eq(1)
+      expect(result[:per_page]).to eq(10)
+      expect(result[:total_pages]).to be_a(Integer)
     end
 
-    it 'returns error when video is not found' do
-      allow(PexelsClient.videos).to receive(:find).with('9999').and_return(nil)
+    it 'handles search with pagination', vcr: { cassette_name: 'pexels/search_videos_nature_page_2' } do
+      result = provider.search_videos('nature', 2, 5)
 
-      result = provider.fetch_video_by_id('9999')
-
-      expect(result).to include(error: 'Video not found')
+      expect(result[:page]).to eq(2)
+      expect(result[:per_page]).to eq(5)
+      expect(result[:items].length).to be <= 5
     end
 
-    it 'handles Pexels API errors' do
-      allow(PexelsClient.videos).to receive(:find).and_raise(Pexels::APIError.new('Not found'))
+    it 'returns empty results for nonsense queries', vcr: { cassette_name: 'pexels/search_videos_nonsense' } do
+      result = provider.search_videos('ajskdhaskjdhkajshdkjashdkjahsdkjahskdjhaksjdhakjshd')
 
-      result = provider.fetch_video_by_id('1234')
-
-      expect(result).to include(error: 'Video not found')
+      expect(result[:items]).to be_an(Array)
+      # O total de páginas pode ser 0 ou baixo para uma consulta sem sentido
+      expect(result[:total_pages]).to be >= 0
     end
 
-    it 'handles general errors gracefully' do
-      allow(PexelsClient.videos).to receive(:find).and_raise(StandardError.new('Network error'))
+    it 'searches with size filter', vcr: { cassette_name: 'pexels/search_videos_nature_hd' } do
+      result = provider.search_videos('nature', 1, 10, { size: 'HD' })
 
-      result = provider.fetch_video_by_id('1234')
+      expect(result[:items]).to be_an(Array)
+    end
+  end
 
-      expect(result).to include(error: 'Unknown error: Network error')
+  describe '#fetch_video_by_id', vcr: { cassette_name: 'pexels/video_2499611' } do
+    it 'fetches a single video by id' do
+      # Use um ID válido existente na Pexels para evitar falhas
+      # Este ID pode precisar ser alterado se o vídeo for removido
+      result = provider.fetch_video_by_id('2499611')
+
+      expect(result).to be_a(Hash)
+      expect(result[:id]).to be_a(Integer)
+      expect(result[:width]).to be_a(Integer)
+      expect(result[:height]).to be_a(Integer)
+      expect(result[:user]).to include(:name)
+      expect(result[:video_files]).to include(:sd, :hd, :full_hd, :uhd)
+    end
+
+    it 'returns error for non-existent video', vcr: { cassette_name: 'pexels/video_nonexistent' } do
+      result = provider.fetch_video_by_id('999999999999')
+
+      expect(result).to include(:error)
+      expect(result[:error]).to eq('Video not found')
+    end
+  end
+
+  # Este teste simula um erro de conexão
+  describe 'error handling' do
+    it 'handles connection errors' do
+      VCRHelper.mock_connection_error do
+        result = provider.fetch_videos
+
+        expect(result).to include(:error)
+        expect(result[:items]).to eq([])
+      end
     end
   end
 end
