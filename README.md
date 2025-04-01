@@ -104,42 +104,6 @@ Este projeto utiliza a gem VCR para gravar e reproduzir chamadas de API externas
 - Nas execuções subsequentes dos testes, usa as respostas gravadas em vez de fazer chamadas reais
 - Ajuda a manter os testes rápidos e consistentes
 
-#### Configurações Principais
-
-No arquivo `spec/spec_helper.rb`, o VCR está configurado com as seguintes opções:
-
-```ruby
-VCR.configure do |config|
-  config.cassette_library_dir = "spec/fixtures/vcr_cassettes"
-  config.hook_into :webmock
-  config.configure_rspec_metadata!
-  config.ignore_localhost = true
-  config.default_cassette_options = {
-    record: :new_episodes,
-    match_requests_on: [ :method, :uri, :body ]
-  }
-
-  # Filtra a chave da API Pexels nas cassetes
-  config.filter_sensitive_data('<PEXELS_API_KEY>') { ENV['PEXELS_API_KEY'] }
-end
-```
-
-#### Modos de Gravação
-
-- `:new_episodes`: Grava apenas novas interações não capturadas anteriormente
-- `:once`: Grava apenas se não existir uma cassete
-- `:none`: Falha se tentar fazer uma chamada de rede não capturada
-
-#### Usando VCR nos Testes
-
-Adicione o decorator `vcr` aos seus testes:
-
-```ruby
-it 'fetches videos', vcr: { cassette_name: 'videos/fetch' } do
-  # Seu teste
-end
-```
-
 #### Gerenciando Cassetes
 
 - As cassetes são armazenadas em `spec/fixtures/vcr_cassettes/`
@@ -149,19 +113,6 @@ end
 #### Regenerando e Mantendo Cassetes
 
 O VCR está configurado para regravar automaticamente cassetes após um período definido:
-
-```ruby
-# No arquivo spec/spec_helper.rb
-VCR.configure do |config|
-  # ... outras configurações
-  config.default_cassette_options = {
-    record: :new_episodes,
-    re_record_interval: 30.days,  # Regrava cassetes mais antigas que 30 dias
-    match_requests_on: [:method, :uri, :body]
-  }
-end
-```
-
 Além disso, disponibilizamos tarefas Rake para manutenção manual das cassetes:
 
 ```bash
