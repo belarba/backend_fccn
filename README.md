@@ -9,6 +9,7 @@ Esta API fornece acesso a vídeos da plataforma Pexels, permitindo buscar vídeo
 - RSpec (testes)
 - Pexels API
 - Dotenv (gerenciamento de variáveis de ambiente)
+- Jbuilder (formatação de respostas JSON)
 - Rubocop (para enfatizar melhores práticas)
 
 ## Pré-requisitos
@@ -85,7 +86,21 @@ A aplicação segue os princípios SOLID e está estruturada da seguinte forma:
   - `video_filter_service.rb`: Serviço para filtragem de vídeos
   - `pexels_video_provider.rb`: Implementação do provedor de vídeos Pexels
   - `video_provider_factory.rb`: Factory para criar provedores de vídeo
+- **app/views**: Templates Jbuilder para formatação das respostas JSON
+  - `api/v1/videos/_video.json.jbuilder`: Partial para reutilização da estrutura de vídeo
+  - `api/v1/videos/index.json.jbuilder`: Template para listar vídeos
+  - `api/v1/videos/show.json.jbuilder`: Template para exibir detalhes de um vídeo
 - **spec**: Testes automatizados
+
+## Arquitetura da API
+
+Esta API segue o padrão Model-View-Controller (MVC):
+
+- **Models**: Representados pelos serviços que encapsulam a lógica de negócios e interação com APIs externas
+- **Views**: Templates Jbuilder que definem o formato e estrutura das respostas JSON
+- **Controllers**: Controladores que processam requisições, delegam para os serviços apropriados e renderizam as views
+
+A utilização do Jbuilder para formatação de JSON permite uma melhor organização do código, reutilização de fragmentos comuns através de partials, e manutenção mais fácil do formato da API.
 
 ## Endpoints da API
 

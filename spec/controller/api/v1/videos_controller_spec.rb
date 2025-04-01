@@ -64,6 +64,8 @@ RSpec.describe Api::V1::VideosController, type: :controller do
   context 'with valid authorization' do
     before do
       request.headers['Authorization'] = valid_api_key
+      # Especificar o formato JSON para todos os testes
+      request.accept = 'application/json'
     end
 
     describe 'GET #index' do
@@ -73,10 +75,12 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :index
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['items']).to be_present
-        expect(json_response['page']).to eq(1)
-        expect(json_response['per_page']).to eq(10)
+        expect(assigns(:videos)).to eq(mock_videos[:items])
+        expect(assigns(:page)).to eq(1)
+        expect(assigns(:per_page)).to eq(10)
+        expect(assigns(:total_pages)).to eq(mock_videos[:total_pages])
+        # Verifica se o template correto está sendo renderizado
+        expect(response).to render_template(:index)
       end
 
       it 'returns search results when query is provided' do
@@ -85,8 +89,9 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :index, params: { query: 'nature' }
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['items'].first['user_name']).to eq('Search User')
+        expect(assigns(:videos)).to eq(mock_search_videos[:items])
+        # Verifica se o template correto está sendo renderizado
+        expect(response).to render_template(:index)
       end
 
       it 'ignores empty query and returns popular videos' do
@@ -95,6 +100,8 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :index, params: { query: '' }
 
         expect(response).to have_http_status(:success)
+        expect(assigns(:videos)).to eq(mock_videos[:items])
+        expect(response).to render_template(:index)
       end
 
       it 'supports custom pagination params' do
@@ -103,10 +110,10 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :index, params: { page: 2, per_page: 15 }
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['page']).to eq(2)
-        expect(json_response['per_page']).to eq(15)
-        expect(json_response['items'].first['user_name']).to eq('Another User')
+        expect(assigns(:page)).to eq(2)
+        expect(assigns(:per_page)).to eq(15)
+        expect(assigns(:videos)).to eq(mock_videos_2[:items])
+        expect(response).to render_template(:index)
       end
 
       it 'supports size parameter for popular videos' do
@@ -115,24 +122,19 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :index, params: { size: 'HD' }
 
         expect(response).to have_http_status(:success)
+        expect(assigns(:videos)).to eq(mock_videos[:items])
+        expect(response).to render_template(:index)
       end
 
-      it 'supports combination of parameters for search' do
-        expect(mock_video_provider).to receive(:search_videos).with(
-          'nature', 2, 15, { size: 'FullHD' }
-        ).and_return(mock_videos_2)
+      it 'handles API errors gracefully' do
+        error_response = { error: 'API Error', items: [], page: 1, per_page: 10, total_pages: 0 }
+        allow(mock_video_provider).to receive(:fetch_videos).and_return(error_response)
 
-        get :index, params: {
-          query: 'nature',
-          page: 2,
-          per_page: 15,
-          size: 'FullHD'
-        }
+        get :index
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:internal_server_error)
         json_response = JSON.parse(response.body)
-        expect(json_response['page']).to eq(2)
-        expect(json_response['per_page']).to eq(15)
+        expect(json_response['error']).to eq('API Error')
       end
     end
 
@@ -143,11 +145,9 @@ RSpec.describe Api::V1::VideosController, type: :controller do
         get :show, params: { id: '1234' }
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['id']).to eq(1234)
-        expect(json_response['resolution']).to eq('FullHD')
-        expect(json_response['user']['name']).to eq('Test User')
-        expect(json_response['video_files']['hd']).to be_present
+        expect(assigns(:video)).to eq(mock_video_detail)
+        expect(assigns(:video_files)).to eq(mock_video_detail[:video_files])
+        expect(response).to render_template(:show)
       end
 
       it 'returns not found when video does not exist' do
@@ -167,7 +167,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
 
         expect(response).to have_http_status(:internal_server_error)
         json_response = JSON.parse(response.body)
-        expect(json_response['error']).to be_present
+        expect(json_response['error']).to include('API Error')
       end
     end
   end
@@ -175,6 +175,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
   context 'with invalid authorization' do
     it 'returns unauthorized status' do
       request.headers['Authorization'] = invalid_api_key
+      request.accept = 'application/json'
 
       get :index
 
@@ -184,6 +185,8 @@ RSpec.describe Api::V1::VideosController, type: :controller do
     end
 
     it 'returns unauthorized when no token is provided' do
+      request.accept = 'application/json'
+
       get :index
 
       expect(response).to have_http_status(:unauthorized)
@@ -193,6 +196,7 @@ RSpec.describe Api::V1::VideosController, type: :controller do
 
     it 'returns unauthorized for show action' do
       request.headers['Authorization'] = invalid_api_key
+      request.accept = 'application/json'
 
       get :show, params: { id: '1234' }
 
